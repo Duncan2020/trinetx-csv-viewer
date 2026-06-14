@@ -1,0 +1,991 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TriNetX CSV 檢視與摘要工具</title>
+  <style>
+    :root {
+      --bg: #f6f7f3;
+      --ink: #1d2521;
+      --muted: #66736d;
+      --line: #d9ddd2;
+      --panel: #ffffff;
+      --accent: #0b6bcb;
+      --accent-2: #0f8a5f;
+      --warn: #b45309;
+      --danger: #b42318;
+      --shadow: 0 18px 50px rgba(29, 37, 33, 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        linear-gradient(135deg, rgba(11, 107, 203, 0.08), transparent 32%),
+        linear-gradient(315deg, rgba(15, 138, 95, 0.08), transparent 38%),
+        var(--bg);
+      font-family: "Segoe UI", "Noto Sans TC", system-ui, sans-serif;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    .shell {
+      width: min(1480px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 32px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18px;
+      align-items: end;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(26px, 4vw, 44px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 8px 0 0;
+      max-width: 860px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--ink);
+      background: var(--panel);
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: #aeb8ae;
+    }
+
+    .btn.primary {
+      border-color: var(--accent);
+      color: #fff;
+      background: var(--accent);
+    }
+
+    .btn.success {
+      border-color: var(--accent-2);
+      color: #fff;
+      background: var(--accent-2);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.78);
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .panel-body {
+      padding: 18px;
+    }
+
+    .dropzone {
+      display: grid;
+      place-items: center;
+      min-height: 190px;
+      padding: 20px;
+      border: 2px dashed #aeb8ae;
+      border-radius: 8px;
+      background: #fbfcf8;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .dropzone.drag {
+      border-color: var(--accent);
+      background: #edf6ff;
+    }
+
+    .dropzone strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 18px;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .file-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .file-pill {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      font-size: 13px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .metric {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .metric .label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .metric .value {
+      margin-top: 6px;
+      font-size: clamp(22px, 3vw, 34px);
+      font-weight: 760;
+      line-height: 1;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      padding: 6px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #eef1ea;
+      overflow-x: auto;
+    }
+
+    .tab {
+      min-height: 34px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .tab.active {
+      color: var(--ink);
+      background: #fff;
+      box-shadow: 0 2px 10px rgba(29, 37, 33, 0.08);
+    }
+
+    .view {
+      display: none;
+      margin-top: 14px;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .field {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      min-width: min(100%, 300px);
+    }
+
+    .field label {
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0 10px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .chart-wrap {
+      min-height: 360px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 360px;
+    }
+
+    .table-wrap {
+      width: 100%;
+      max-height: 520px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      min-width: 760px;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #edf0e9;
+      text-align: left;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #f7f8f4;
+      color: #405047;
+      font-weight: 700;
+    }
+
+    .status {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 8px;
+      color: #514117;
+      background: #fff7d6;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .status.ok {
+      color: #164c36;
+      background: #e8f7ef;
+    }
+
+    .status.err {
+      color: #7a1c16;
+      background: #ffe7e5;
+    }
+
+    .empty {
+      display: grid;
+      place-items: center;
+      min-height: 260px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 0 8px;
+      border-radius: 999px;
+      color: #284136;
+      background: #e7eee8;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    @media (max-width: 920px) {
+      .topbar,
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .actions {
+        justify-content: flex-start;
+      }
+
+      .metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 560px) {
+      .shell {
+        width: min(100% - 20px, 1480px);
+        padding-top: 14px;
+      }
+
+      .metrics {
+        grid-template-columns: 1fr;
+      }
+
+      .panel-body,
+      .panel-header {
+        padding: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="topbar">
+      <div>
+        <h1>TriNetX CSV 檢視與摘要工具</h1>
+        <p class="subtitle">把 TriNetX 匯出的 CSV 放進來，快速檢查欄位、缺失值、前幾列資料與常見值分布；所有處理都在你的瀏覽器本機完成，適合部署成 GitHub Pages 線上工具。</p>
+      </div>
+      <div class="actions">
+        <button class="btn" id="clearBtn" type="button">清除</button>
+        <button class="btn success" id="zipBtn" type="button">匯出 ZIP</button>
+        <button class="btn primary" id="docxBtn" type="button">匯出 Word 摘要</button>
+      </div>
+    </section>
+
+    <section class="grid">
+      <aside class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">資料來源</h2>
+          <span class="badge" id="libraryState">載入中</span>
+        </div>
+        <div class="panel-body">
+          <label class="dropzone" id="dropzone">
+            <input id="fileInput" type="file" accept=".csv,text/csv" multiple hidden>
+            <span>
+              <strong>拖曳 CSV 到這裡</strong>
+              <span class="hint">或點擊選擇檔案。可一次選多個 TriNetX 匯出檔。</span>
+            </span>
+          </label>
+          <div class="file-list" id="fileList"></div>
+          <div class="status" id="status">尚未載入資料。</div>
+        </div>
+      </aside>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">分析結果</h2>
+          <span class="badge" id="datasetName">未選取</span>
+        </div>
+        <div class="panel-body">
+          <div id="emptyState" class="empty">請先上傳 TriNetX 匯出的 CSV。</div>
+          <div id="dashboard" hidden>
+            <div class="metrics">
+              <div class="metric">
+                <div class="label">資料列</div>
+                <div class="value" id="rowCount">0</div>
+              </div>
+              <div class="metric">
+                <div class="label">欄位數</div>
+                <div class="value" id="colCount">0</div>
+              </div>
+              <div class="metric">
+                <div class="label">數值欄位</div>
+                <div class="value" id="numericCount">0</div>
+              </div>
+              <div class="metric">
+                <div class="label">缺失儲存格</div>
+                <div class="value" id="missingCount">0</div>
+              </div>
+            </div>
+
+            <nav class="tabs" aria-label="檢視切換">
+              <button class="tab active" type="button" data-view="overview">概覽</button>
+              <button class="tab" type="button" data-view="columns">欄位</button>
+              <button class="tab" type="button" data-view="preview">資料預覽</button>
+            </nav>
+
+            <section class="view active" id="overview">
+              <div class="toolbar">
+                <div class="field">
+                  <label for="chartColumn">圖表欄位</label>
+                  <select id="chartColumn"></select>
+                </div>
+              </div>
+              <div class="chart-wrap">
+                <svg id="chart" role="img" aria-label="欄位分布圖"></svg>
+              </div>
+            </section>
+
+            <section class="view" id="columns">
+              <div class="toolbar">
+                <div class="field">
+                  <label for="columnSearch">搜尋欄位</label>
+                  <input id="columnSearch" type="search" placeholder="輸入欄位名稱">
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>欄位</th>
+                      <th>型態</th>
+                      <th>非空值</th>
+                      <th>缺失值</th>
+                      <th>唯一值</th>
+                      <th>範例</th>
+                    </tr>
+                  </thead>
+                  <tbody id="columnTable"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="view" id="preview">
+              <div class="table-wrap">
+                <table id="previewTable"></table>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script src="./papaparse.min.js"></script>
+  <script src="./d3.min.js"></script>
+  <script src="./jszip.min.js"></script>
+  <script src="./docx.umd.js"></script>
+  <script src="./FileSaver.min.js"></script>
+  <script>
+    const state = {
+      files: [],
+      activeIndex: 0,
+      analysis: null
+    };
+
+    const els = {
+      fileInput: document.getElementById("fileInput"),
+      dropzone: document.getElementById("dropzone"),
+      fileList: document.getElementById("fileList"),
+      status: document.getElementById("status"),
+      libraryState: document.getElementById("libraryState"),
+      datasetName: document.getElementById("datasetName"),
+      emptyState: document.getElementById("emptyState"),
+      dashboard: document.getElementById("dashboard"),
+      rowCount: document.getElementById("rowCount"),
+      colCount: document.getElementById("colCount"),
+      numericCount: document.getElementById("numericCount"),
+      missingCount: document.getElementById("missingCount"),
+      chartColumn: document.getElementById("chartColumn"),
+      chart: document.getElementById("chart"),
+      columnSearch: document.getElementById("columnSearch"),
+      columnTable: document.getElementById("columnTable"),
+      previewTable: document.getElementById("previewTable"),
+      zipBtn: document.getElementById("zipBtn"),
+      docxBtn: document.getElementById("docxBtn"),
+      clearBtn: document.getElementById("clearBtn")
+    };
+
+    function formatNumber(value) {
+      return new Intl.NumberFormat("zh-TW").format(value || 0);
+    }
+
+    function setStatus(message, type = "") {
+      els.status.textContent = message;
+      els.status.className = `status ${type}`.trim();
+    }
+
+    function loadedLibraries() {
+      return {
+        Papa: typeof Papa !== "undefined",
+        d3: typeof d3 !== "undefined",
+        JSZip: typeof JSZip !== "undefined",
+        docx: typeof docx !== "undefined",
+        saveAs: typeof saveAs !== "undefined"
+      };
+    }
+
+    function updateLibraryState() {
+      const libs = loadedLibraries();
+      const ok = Object.values(libs).every(Boolean);
+      els.libraryState.textContent = ok ? "套件已就緒" : "部分套件未載入";
+      els.libraryState.style.background = ok ? "#e8f7ef" : "#fff7d6";
+    }
+
+    function isBlank(value) {
+      return value === null || value === undefined || String(value).trim() === "";
+    }
+
+    function isNumeric(value) {
+      if (isBlank(value)) return false;
+      return Number.isFinite(Number(String(value).replaceAll(",", "")));
+    }
+
+    function detectType(values) {
+      const present = values.filter((value) => !isBlank(value));
+      if (!present.length) return "空欄位";
+      const numeric = present.filter(isNumeric).length;
+      const dates = present.filter((value) => !Number.isNaN(Date.parse(value))).length;
+      if (numeric / present.length >= 0.9) return "數值";
+      if (dates / present.length >= 0.85) return "日期";
+      return "文字/類別";
+    }
+
+    function analyzeRows(name, rows) {
+      const columns = Object.keys(rows[0] || {});
+      const profiles = columns.map((column) => {
+        const values = rows.map((row) => row[column]);
+        const present = values.filter((value) => !isBlank(value));
+        const unique = new Set(present.map((value) => String(value).trim()));
+        const examples = Array.from(unique).slice(0, 4).join("、");
+        return {
+          column,
+          type: detectType(values),
+          present: present.length,
+          missing: values.length - present.length,
+          unique: unique.size,
+          examples
+        };
+      });
+
+      const numericColumns = profiles.filter((profile) => profile.type === "數值");
+      const missingTotal = profiles.reduce((sum, profile) => sum + profile.missing, 0);
+      const preferredChart = profiles
+        .filter((profile) => profile.present > 0 && profile.unique > 1)
+        .sort((a, b) => {
+          const aScore = a.type === "文字/類別" ? 0 : 1;
+          const bScore = b.type === "文字/類別" ? 0 : 1;
+          return aScore - bScore || a.unique - b.unique;
+        })[0];
+
+      return {
+        name,
+        rows,
+        columns,
+        profiles,
+        rowCount: rows.length,
+        colCount: columns.length,
+        numericCount: numericColumns.length,
+        missingTotal,
+        preferredChartColumn: preferredChart ? preferredChart.column : columns[0]
+      };
+    }
+
+    function parseFiles(files) {
+      const csvFiles = Array.from(files).filter((file) => /\.csv$/i.test(file.name) || file.type.includes("csv"));
+      if (!csvFiles.length) {
+        setStatus("沒有找到 CSV 檔。請選擇 TriNetX 匯出的 .csv。", "err");
+        return;
+      }
+
+      setStatus("正在讀取 CSV...");
+      const tasks = csvFiles.map((file) => new Promise((resolve, reject) => {
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          dynamicTyping: false,
+          complete: (result) => resolve({
+            name: file.name,
+            rows: result.data.filter((row) => Object.values(row).some((value) => !isBlank(value))),
+            errors: result.errors
+          }),
+          error: reject
+        });
+      }));
+
+      Promise.all(tasks)
+        .then((items) => {
+          state.files = items.map((item) => ({
+            name: item.name,
+            rows: item.rows,
+            errors: item.errors,
+            analysis: analyzeRows(item.name, item.rows)
+          }));
+          state.activeIndex = 0;
+          renderFileList();
+          setActiveDataset(0);
+          const errorCount = items.reduce((sum, item) => sum + item.errors.length, 0);
+          setStatus(`已載入 ${items.length} 個 CSV，共 ${formatNumber(items.reduce((sum, item) => sum + item.rows.length, 0))} 列。${errorCount ? `解析警告 ${errorCount} 筆。` : ""}`, "ok");
+        })
+        .catch((error) => {
+          setStatus(`讀取失敗：${error.message}`, "err");
+        });
+    }
+
+    function renderFileList() {
+      els.fileList.innerHTML = "";
+      state.files.forEach((file, index) => {
+        const button = document.createElement("button");
+        button.className = "file-pill";
+        button.type = "button";
+        button.innerHTML = `<span>${file.name}</span><span>${formatNumber(file.rows.length)} 列</span>`;
+        button.addEventListener("click", () => setActiveDataset(index));
+        els.fileList.appendChild(button);
+      });
+    }
+
+    function setActiveDataset(index) {
+      state.activeIndex = index;
+      state.analysis = state.files[index]?.analysis || null;
+      renderDashboard();
+    }
+
+    function renderDashboard() {
+      const analysis = state.analysis;
+      if (!analysis) {
+        els.emptyState.hidden = false;
+        els.dashboard.hidden = true;
+        els.datasetName.textContent = "未選取";
+        return;
+      }
+
+      els.emptyState.hidden = true;
+      els.dashboard.hidden = false;
+      els.datasetName.textContent = analysis.name;
+      els.rowCount.textContent = formatNumber(analysis.rowCount);
+      els.colCount.textContent = formatNumber(analysis.colCount);
+      els.numericCount.textContent = formatNumber(analysis.numericCount);
+      els.missingCount.textContent = formatNumber(analysis.missingTotal);
+
+      renderChartOptions();
+      renderColumnTable();
+      renderPreview();
+      drawChart(els.chartColumn.value);
+    }
+
+    function renderChartOptions() {
+      const analysis = state.analysis;
+      els.chartColumn.innerHTML = "";
+      analysis.profiles
+        .filter((profile) => profile.present > 0)
+        .forEach((profile) => {
+          const option = document.createElement("option");
+          option.value = profile.column;
+          option.textContent = `${profile.column} (${profile.type})`;
+          els.chartColumn.appendChild(option);
+        });
+      els.chartColumn.value = analysis.preferredChartColumn || analysis.columns[0] || "";
+    }
+
+    function renderColumnTable() {
+      const query = els.columnSearch.value.trim().toLowerCase();
+      const rows = state.analysis.profiles.filter((profile) => profile.column.toLowerCase().includes(query));
+      els.columnTable.innerHTML = rows.map((profile) => `
+        <tr>
+          <td>${escapeHtml(profile.column)}</td>
+          <td>${profile.type}</td>
+          <td>${formatNumber(profile.present)}</td>
+          <td>${formatNumber(profile.missing)}</td>
+          <td>${formatNumber(profile.unique)}</td>
+          <td>${escapeHtml(profile.examples || "")}</td>
+        </tr>
+      `).join("");
+    }
+
+    function renderPreview() {
+      const analysis = state.analysis;
+      const columns = analysis.columns;
+      const rows = analysis.rows.slice(0, 30);
+      const head = `<thead><tr>${columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("")}</tr></thead>`;
+      const body = `<tbody>${rows.map((row) => `<tr>${columns.map((column) => `<td>${escapeHtml(row[column])}</td>`).join("")}</tr>`).join("")}</tbody>`;
+      els.previewTable.innerHTML = head + body;
+    }
+
+    function drawChart(column) {
+      const analysis = state.analysis;
+      const svg = d3.select(els.chart);
+      svg.selectAll("*").remove();
+
+      if (!analysis || !column) return;
+
+      const width = els.chart.clientWidth || 900;
+      const height = 360;
+      const margin = { top: 28, right: 26, bottom: 88, left: 64 };
+      const counts = d3.rollups(
+        analysis.rows.map((row) => String(row[column] ?? "").trim() || "(空值)"),
+        (values) => values.length,
+        (value) => value
+      )
+        .sort((a, b) => d3.descending(a[1], b[1]))
+        .slice(0, 14)
+        .map(([label, value]) => ({ label, value }));
+
+      if (!counts.length) return;
+
+      const x = d3.scaleBand()
+        .domain(counts.map((item) => item.label))
+        .range([margin.left, width - margin.right])
+        .padding(0.18);
+
+      const y = d3.scaleLinear()
+        .domain([0, d3.max(counts, (item) => item.value)])
+        .nice()
+        .range([height - margin.bottom, margin.top]);
+
+      svg.attr("viewBox", `0 0 ${width} ${height}`);
+
+      svg.append("g")
+        .attr("transform", `translate(${margin.left},0)`)
+        .call(d3.axisLeft(y).ticks(5))
+        .call((g) => g.select(".domain").remove())
+        .call((g) => g.selectAll("line").attr("stroke", "#dfe4db"))
+        .call((g) => g.selectAll("text").attr("fill", "#66736d"));
+
+      svg.append("g")
+        .attr("transform", `translate(0,${height - margin.bottom})`)
+        .call(d3.axisBottom(x).tickFormat((value) => String(value).length > 18 ? `${String(value).slice(0, 18)}...` : value))
+        .call((g) => g.select(".domain").attr("stroke", "#c7cec4"))
+        .call((g) => g.selectAll("text")
+          .attr("fill", "#66736d")
+          .attr("transform", "rotate(-38)")
+          .attr("text-anchor", "end")
+          .attr("dx", "-0.5em")
+          .attr("dy", "0.4em"));
+
+      svg.append("g")
+        .selectAll("rect")
+        .data(counts)
+        .join("rect")
+        .attr("x", (item) => x(item.label))
+        .attr("y", (item) => y(item.value))
+        .attr("width", x.bandwidth())
+        .attr("height", (item) => y(0) - y(item.value))
+        .attr("rx", 4)
+        .attr("fill", "#0b6bcb");
+
+      svg.append("g")
+        .selectAll("text")
+        .data(counts)
+        .join("text")
+        .attr("x", (item) => x(item.label) + x.bandwidth() / 2)
+        .attr("y", (item) => y(item.value) - 7)
+        .attr("text-anchor", "middle")
+        .attr("font-size", 12)
+        .attr("fill", "#1d2521")
+        .text((item) => formatNumber(item.value));
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function summaryCsv(analysis) {
+      return Papa.unparse(analysis.profiles.map((profile) => ({
+        column: profile.column,
+        type: profile.type,
+        present: profile.present,
+        missing: profile.missing,
+        unique: profile.unique,
+        examples: profile.examples
+      })));
+    }
+
+    function safeName(name) {
+      return name.replace(/[\\/:*?"<>|]+/g, "_").replace(/\.csv$/i, "");
+    }
+
+    async function exportZip() {
+      if (!state.files.length) {
+        setStatus("請先載入 CSV，再匯出 ZIP。", "err");
+        return;
+      }
+
+      const zip = new JSZip();
+      state.files.forEach((file) => {
+        const folder = zip.folder(safeName(file.name));
+        folder.file("column-profile.csv", summaryCsv(file.analysis));
+        folder.file("preview.json", JSON.stringify(file.analysis.rows.slice(0, 100), null, 2));
+        folder.file("summary.json", JSON.stringify({
+          name: file.analysis.name,
+          rows: file.analysis.rowCount,
+          columns: file.analysis.colCount,
+          numericColumns: file.analysis.numericCount,
+          missingCells: file.analysis.missingTotal
+        }, null, 2));
+      });
+      const blob = await zip.generateAsync({ type: "blob" });
+      saveAs(blob, "trinetx-summary.zip");
+      setStatus("已匯出 ZIP 摘要。", "ok");
+    }
+
+    async function exportDocx() {
+      if (!state.analysis) {
+        setStatus("請先載入 CSV，再匯出 Word 摘要。", "err");
+        return;
+      }
+
+      const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType } = docx;
+      const analysis = state.analysis;
+      const rows = [
+        ["資料檔", analysis.name],
+        ["資料列", formatNumber(analysis.rowCount)],
+        ["欄位數", formatNumber(analysis.colCount)],
+        ["數值欄位", formatNumber(analysis.numericCount)],
+        ["缺失儲存格", formatNumber(analysis.missingTotal)]
+      ];
+
+      const doc = new Document({
+        sections: [{
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "TriNetX CSV 摘要", bold: true, size: 32 })]
+            }),
+            new Paragraph({ text: `產生時間：${new Date().toLocaleString("zh-TW")}` }),
+            new Table({
+              width: { size: 100, type: WidthType.PERCENTAGE },
+              rows: rows.map((row) => new TableRow({
+                children: row.map((cell) => new TableCell({
+                  children: [new Paragraph(String(cell))]
+                }))
+              }))
+            }),
+            new Paragraph({ text: "" }),
+            new Paragraph({
+              children: [new TextRun({ text: "欄位摘要", bold: true, size: 26 })]
+            }),
+            new Table({
+              width: { size: 100, type: WidthType.PERCENTAGE },
+              rows: [
+                ["欄位", "型態", "非空值", "缺失值", "唯一值"],
+                ...analysis.profiles.slice(0, 25).map((profile) => [
+                  profile.column,
+                  profile.type,
+                  profile.present,
+                  profile.missing,
+                  profile.unique
+                ])
+              ].map((row) => new TableRow({
+                children: row.map((cell) => new TableCell({
+                  children: [new Paragraph(String(cell))]
+                }))
+              }))
+            })
+          ]
+        }]
+      });
+
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, `${safeName(analysis.name)}-summary.docx`);
+      setStatus("已匯出 Word 摘要。", "ok");
+    }
+
+    els.dropzone.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      els.dropzone.classList.add("drag");
+    });
+
+    els.dropzone.addEventListener("dragleave", () => {
+      els.dropzone.classList.remove("drag");
+    });
+
+    els.dropzone.addEventListener("drop", (event) => {
+      event.preventDefault();
+      els.dropzone.classList.remove("drag");
+      parseFiles(event.dataTransfer.files);
+    });
+
+    els.fileInput.addEventListener("change", (event) => parseFiles(event.target.files));
+    els.chartColumn.addEventListener("change", (event) => drawChart(event.target.value));
+    els.columnSearch.addEventListener("input", renderColumnTable);
+    els.zipBtn.addEventListener("click", exportZip);
+    els.docxBtn.addEventListener("click", exportDocx);
+    els.clearBtn.addEventListener("click", () => {
+      state.files = [];
+      state.activeIndex = 0;
+      state.analysis = null;
+      els.fileInput.value = "";
+      els.fileList.innerHTML = "";
+      setStatus("尚未載入資料。");
+      renderDashboard();
+    });
+
+    document.querySelectorAll(".tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach((item) => item.classList.remove("active"));
+        document.querySelectorAll(".view").forEach((view) => view.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById(tab.dataset.view).classList.add("active");
+        if (tab.dataset.view === "overview") drawChart(els.chartColumn.value);
+      });
+    });
+
+    window.addEventListener("resize", () => {
+      if (state.analysis) drawChart(els.chartColumn.value);
+    });
+
+    updateLibraryState();
+    renderDashboard();
+  </script>
+</body>
+</html>
